@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 from contextlib import asynccontextmanager
@@ -5,9 +6,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app import telemetry
+from app.telemetry import log_with_trace, setup_telemetry
 
 
 DB_PATH = Path(os.getenv("ORDER_DB_PATH", "data/orders.db"))
@@ -77,6 +82,42 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Order Tracker", lifespan=lifespan)
+setup_telemetry(app)
+
+
+class RequestMetricsMiddleware(BaseHTTPMiddleware):
+    """Records one counter increment per request, labeled by route/method/status.
+
+    Placed after FastAPIInstrumentor so this still runs even when the endpoint
+    raises: an unhandled exception propagates out of ``call_next`` (Starlette's
+    error middleware sits further out and turns it into the actual 500
+    response), so it is caught here to record status 500 before re-raising.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await call_next(request)
+        except Exception:
+            self._record(request, 500)
+            raise
+        self._record(request, response.status_code)
+        return response
+
+    @staticmethod
+    def _record(request: Request, status_code: int) -> None:
+        route = request.scope.get("route")
+        route_path = route.path if route is not None else request.url.path
+        telemetry.request_counter.add(
+            1,
+            {
+                "http.route": route_path,
+                "http.method": request.method,
+                "http.status_code": status_code,
+            },
+        )
+
+
+app.add_middleware(RequestMetricsMiddleware)
 
 
 @app.get("/")
@@ -103,8 +144,20 @@ def get_order(order_id: str):
     with connect() as db:
         row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     if row is None:
+        log_with_trace(logging.INFO, "order lookup miss", order_id=order_id)
         raise HTTPException(404, "Order not found")
-    return order_detail(row)
+    try:
+        detail = order_detail(row)
+    except Exception as exc:
+        log_with_trace(
+            logging.ERROR,
+            f"order lookup failed while building order detail: {exc!r}",
+            order_id=order_id,
+            exc_info=True,
+        )
+        raise
+    log_with_trace(logging.INFO, "order lookup hit", order_id=order_id, status=detail["status"])
+    return detail
 
 
 @app.post("/api/orders", status_code=201)
