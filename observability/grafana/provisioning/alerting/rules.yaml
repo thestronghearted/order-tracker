@@ -1,0 +1,76 @@
+# Verified live against a running Grafana 13.2.2: this rule was first created and
+# evaluated through Grafana's provisioning API (which validates the JSON schema and
+# actually ran the query), then exported and adapted for file-based provisioning.
+# One field genuinely differs between the two: the API calls it `execErrState`, the
+# file loader (see Grafana's own conf/provisioning/alerting/sample.yaml) calls the
+# same setting `executionErrorState` - using the API's name here would silently do
+# nothing. The `folder:` below is created automatically if it doesn't already exist.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: order-tracker
+    folder: Order Tracker
+    interval: 1m
+    rules:
+      - uid: order-tracker-5xx
+        title: Order Tracker 5xx errors
+        condition: C
+        # A: total 5xx responses in the last 5 minutes (Prometheus), defaulting to
+        #    0 - not "no data" - when there have been none at all, so a quiet period
+        #    reads as zero rather than as an evaluation gap.
+        # B: reduce that single instant vector to a scalar.
+        # C: threshold - fires when B > 0.
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(increase(http_server_requests_total{http_status_code=~"5.."}[5m])) OR on() vector(0)
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+              intervalMs: 1000
+              maxDataPoints: 43200
+        # No 5xx ever isn't a data problem, so a quiet period reads as Normal/OK
+        # rather than "No data" (Grafana's default), matching the homework's
+        # explicit "handle periods with no 5xx responses" requirement.
+        noDataState: OK
+        executionErrorState: Error
+        for: 0s
+        annotations:
+          summary: "Order Tracker's order-lookup endpoint is returning 5xx errors."
+          endpoint: /api/orders/{order_id}
+          dashboard: http://localhost:3000/d/order-tracker/order-tracker
+        labels:
+          severity: critical
+        isPaused: false
