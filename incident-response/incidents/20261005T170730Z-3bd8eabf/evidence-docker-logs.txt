@@ -1,0 +1,11 @@
+app-1  | INFO:     Started server process [10]
+app-1  | INFO:     Waiting for application startup.
+app-1  | INFO:     Application startup complete.
+app-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+app-1  | INFO:     127.0.0.1:56930 - "GET /healthz HTTP/1.1" 200 OK
+app-1  | INFO:     127.0.0.1:58984 - "GET /healthz HTTP/1.1" 200 OK
+app-1  | INFO:     10.215.24.1:49356 - "GET /api/orders/express-1002 HTTP/1.1" 200 OK
+app-1  | INFO:     127.0.0.1:58998 - "GET /healthz HTTP/1.1" 200 OK
+app-1  | INFO:     127.0.0.1:59090 - "GET /healthz HTTP/1.1" 200 OK
+app-1  | INFO:     127.0.0.1:35358 - "GET /healthz HTTP/1.1" 200 OK
+app-1  | INFO:     10.215.24.1:40052 - "GET /api/orders/%7Border_id%7D HTTP/1.1" 404 Not Found
