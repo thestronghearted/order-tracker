@@ -86,3 +86,10 @@ def test_matching_responder_secret_is_accepted(monkeypatch, client):
         headers={"X-Responder-Secret": "topsecret"},
     )
     assert response.status_code == 200
+
+
+def test_route_template_endpoint_is_not_reported_as_verified():
+    from service.verify import verify_endpoint
+
+    result = verify_endpoint("http://localhost:8000", "/api/orders/{order_id}")
+    assert result["checked"] is False

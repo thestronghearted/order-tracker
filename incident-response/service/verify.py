@@ -11,6 +11,12 @@ import httpx
 def verify_endpoint(base_url: str, path: str | None) -> dict:
     if not path:
         return {"checked": False, "reason": "no endpoint on the alert to verify"}
+    if "{" in path:
+        return {
+            "checked": False,
+            "reason": f"alert endpoint {path!r} is a route template, not a concrete URL; "
+            "relying on the agent's own re-issue of the failing request",
+        }
     url = f"{base_url}{path}"
     try:
         response = httpx.get(url, timeout=10)

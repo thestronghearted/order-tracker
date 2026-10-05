@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Body, FastAPI, Header, HTTPException
 
 from . import evidence
 from .agent import build_prompt, run_headless_agent
@@ -49,11 +49,14 @@ def healthz() -> dict:
 
 
 @app.post("/alerts")
-async def receive_alert(request: Request, x_responder_secret: str | None = Header(default=None)):
+def receive_alert(payload: dict = Body(...), x_responder_secret: str | None = Header(default=None)):
+    # A plain def (not async) so FastAPI runs it in a worker thread: an investigation
+    # takes minutes, and Grafana retries slow webhooks. If this blocked the event loop
+    # the retries would queue up and run one after another, defeating the in-flight
+    # de-duplication instead of being skipped immediately.
     if RESPONDER_SECRET and x_responder_secret != RESPONDER_SECRET:
         raise HTTPException(401, "invalid or missing X-Responder-Secret")
 
-    payload = await request.json()
     alerts = payload.get("alerts") or [payload]  # tolerate a bare single-alert body too
     results = [handle_one_alert(alert) for alert in alerts]
     return {"handled": len(results), "results": results}
