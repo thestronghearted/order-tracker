@@ -1,0 +1,24 @@
+# Routes every firing alert to the incident-response service running on the host
+# (it needs the host's docker and claude CLIs, so it is not containerised).
+# host.docker.internal is how a Docker Desktop container reaches the host.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: incident-responder
+    receivers:
+      - uid: incident-responder-webhook
+        type: webhook
+        settings:
+          url: http://host.docker.internal:8001/alerts
+          httpMethod: POST
+
+policies:
+  - orgId: 1
+    receiver: incident-responder
+    group_by: ["alertname"]
+    group_wait: 0s
+    group_interval: 1m
+    # The responder also de-duplicates in-flight investigations; a long repeat
+    # interval keeps Grafana from re-notifying while a fix is being verified.
+    repeat_interval: 4h

@@ -8,6 +8,7 @@ evidence collected at the time it fired, same as a real on-call agent would get.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -36,6 +37,10 @@ FastAPI app. A monitoring alert just fired.
 ```
 
 ## Your job
+0. If the alert is explicitly a test notification with no real incident (for
+   example labelled test or "no incident to fix") and the evidence shows no real
+   errors, do not change any code: just say so and finish with
+   `RESOLVED: test notification received, no incident to fix.`
 1. Investigate the order-tracker source in this repository to find the root
    cause of the error(s) reflected in the evidence above. Read the actual code
    - do not guess from the alert name alone.
@@ -76,9 +81,12 @@ def run_headless_agent(prompt: str, repo_dir: Path, timeout_seconds: int = 900) 
     the homework's own design (and the user's explicit sign-off), it is scoped
     to this repository only via cwd/--add-dir, not the whole machine.
     """
+    # On Windows the npm shim is claude.cmd, which CreateProcess cannot find by bare
+    # name, and a multi-line prompt as an argument is mangled by cmd.exe - so resolve
+    # the full path and send the prompt on stdin instead.
     cmd = [
-        "claude",
-        "-p", prompt,
+        shutil.which("claude") or "claude",
+        "-p",
         "--output-format", "json",
         "--permission-mode", "bypassPermissions",
         "--add-dir", str(repo_dir),
@@ -86,6 +94,7 @@ def run_headless_agent(prompt: str, repo_dir: Path, timeout_seconds: int = 900) 
     try:
         completed = subprocess.run(
             cmd,
+            input=prompt,
             cwd=repo_dir,
             capture_output=True,
             text=True,
