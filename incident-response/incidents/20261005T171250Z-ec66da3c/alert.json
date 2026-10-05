@@ -1,0 +1,28 @@
+{
+  "status": "firing",
+  "labels": {
+    "alertname": "Order Tracker 5xx errors",
+    "grafana_folder": "Order Tracker",
+    "severity": "critical"
+  },
+  "annotations": {
+    "dashboard": "http://localhost:3000/d/order-tracker/order-tracker",
+    "endpoint": "/api/orders/{order_id}",
+    "summary": "Order Tracker's order-lookup endpoint is returning 5xx errors."
+  },
+  "startsAt": "2026-10-05T17:05:50Z",
+  "endsAt": "0001-01-01T00:00:00Z",
+  "generatorURL": "http://localhost:3000/alerting/grafana/order-tracker-5xx/view?orgId=1",
+  "fingerprint": "7281032f98a1a9ec",
+  "silenceURL": "http://localhost:3000/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Dorder-tracker-5xx&matcher=severity%3Dcritical&orgId=1",
+  "dashboardURL": "",
+  "panelURL": "",
+  "ruleUID": "order-tracker-5xx",
+  "values": {
+    "A": 7.691060463627818,
+    "B": 7.691060463627818,
+    "C": 1
+  },
+  "valueString": "[ var='A' labels={} type='query' value=7.691060463627818 ], [ var='B' labels={} type='reduce' value=7.691060463627818 ], [ var='C' labels={} type='threshold' value=1 ]",
+  "orgId": 1
+}

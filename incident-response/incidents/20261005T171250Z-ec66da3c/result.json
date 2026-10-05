@@ -1,0 +1,6 @@
+{
+  "incident_id": "20261005T171250Z-ec66da3c",
+  "alert_name": "Order Tracker 5xx errors",
+  "status": "firing",
+  "action": "skipped: an investigation for this alert is already in progress"
+}
